@@ -19,6 +19,7 @@ MetaCommandResult;
 typedef enum
 {
     PREPARE_SUCCESS,
+    PREPARE_SYNTAX_ERROR,
     PREPARE_UNRECOGNIZED_STATEMENT
 } PrepareResult;
 
@@ -28,11 +29,53 @@ typedef enum
     STATEMENT_SELECT
 } StatementType;
 
+#define COLUMN_USERNAME_SIZE 32
+#define COLUMN_EMAIL_SIZE 255
+
+// row
+typedef struct
+{
+    uint32_t id;
+    char username[COLUMN_USERNAME_SIZE];
+    char email[COLUMN_EMAIL_SIZE];
+
+} Row;
+
+// statement
 typedef struct
 {
     StatementType type;
+    Row row_to_insert; // only used by insert statement
 
 } Statement;
+
+#define size_of_attribute(Struct, Attribute) sizeof(((Struct *)0)->Attribute)
+
+//  size of each attributes
+const uint32_t ID_SIZE = size_of_attribute(Row, id);
+const uint32_t USERNAME_SIZE = size_of_attribute(Row, username);
+const uint32_t EMAIL_SIZE = size_of_attribute(Row, email);
+
+// attribute offsets
+const uint32_t ID_OFFSET = 0;
+const uint32_t USERNAME_OFFSET = ID_OFFSET + ID_SIZE;
+const uint32_t EMAIL_OFFSET = USERNAME_OFFSET + USERNAME_SIZE;
+
+// row size
+const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
+
+// table contains pages
+const uint32_t PAGE_SIZE = 4096;
+#define TABLE_MAX_PAGES 100
+const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
+const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
+
+// the table
+typedef struct
+{
+    uint32_t num_rows;
+    void *pages[TABLE_MAX_PAGES];
+} Table;
 
 void print_prompt() { printf("db > "); }
 
@@ -104,21 +147,22 @@ PrepareResult prepare_statement(InputBuffer *input_buffer, Statement *statement)
     return PREPARE_UNRECOGNIZED_STATEMENT;
 }
 
-void execute_statement(Statement* statement){
-    switch(statement->type){
-        case (STATEMENT_INSERT):
-            printf("This is where we would do an insert.\n");
-            break;
-        case (STATEMENT_SELECT):
-            printf("This is where we would do a select. \n");
-            break;
+void execute_statement(Statement *statement)
+{
+    switch (statement->type)
+    {
+    case (STATEMENT_INSERT):
+        printf("This is where we would do an insert.\n");
+        break;
+    case (STATEMENT_SELECT):
+        printf("This is where we would do a select. \n");
+        break;
     }
 }
 
-
 int main(int argc, char *argv[])
 {
-
+    Table *table = new_table();
     InputBuffer *input_buffer = new_input_buffer();
     while (true)
     {
